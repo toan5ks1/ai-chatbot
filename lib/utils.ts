@@ -222,3 +222,39 @@ export function getMessageIdFromAnnotations(message: Message) {
   // @ts-expect-error messageIdFromServer is not defined in MessageAnnotation
   return annotation.messageIdFromServer;
 }
+
+export async function callNextApi<T>(
+  endpoint: string,
+  params: Record<string, any> = {},
+  method: "GET" | "POST" | "DELETE" = "POST"
+): Promise<T> {
+  const url = new URL(endpoint, self.location.origin);
+
+  if (method === "GET" || method === "DELETE") {
+    // Append params as query parameters for GET and DELETE
+    Object.keys(params).forEach((key) =>
+      url.searchParams.append(key, String(params[key]))
+    );
+  }
+
+  const options: RequestInit = {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    ...(method === "POST" && { body: JSON.stringify(params) }), // Add body only for POST
+  };
+
+  try {
+    const response = await fetch(url.toString(), options);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    return (await response.json()) as T; // Assuming JSON response
+  } catch (error) {
+    console.error("Error calling API:", error);
+    throw error;
+  }
+}

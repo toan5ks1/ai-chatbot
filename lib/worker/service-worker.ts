@@ -1,9 +1,11 @@
 import { ChatWebLLM } from "@langchain/community/chat_models/webllm";
 import { ServiceWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
 import { defaultCache } from "@serwist/next/worker";
-import { LangChainAdapter } from "ai";
+import { convertToCoreMessages, LangChainAdapter, type Message } from "ai";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import { CacheFirst, ExpirationPlugin, Serwist } from "serwist";
+import { callNextApi, generateUUID, getMostRecentUserMessage } from "../utils";
+import { generateTitleFromUserMessage } from "../client/action";
 
 declare const self: WorkerGlobalScope;
 const CHATGPT_NEXT_WEB_CACHE = "chatgpt-next-web-cache";
@@ -72,11 +74,56 @@ async function checkGPUAvailablity() {
     event.respondWith(
       (async () => {
         // Read the request body
-        const requestBody = await event.request.json();
+        const {
+          id,
+          messages,
+          modelId = "Llama-3.2-1B-Instruct-q4f32_1-MLC",
+          userId,
+        }: {
+          id: string;
+          messages: Array<Message>;
+          modelId: string;
+          userId: string;
+        } = await event.request.json();
+
+        const coreMessages = convertToCoreMessages(messages);
+        const userMessage = getMostRecentUserMessage(coreMessages);
+
+        if (!userMessage) {
+          return new Response("No user message found", { status: 400 });
+        }
+
+        const res = await callNextApi<any>("/api/chat", { id }, "GET");
+
+        if (!res.data) {
+          const title = await generateTitleFromUserMessage({
+            modelId,
+            message: userMessage,
+          });
+
+          await callNextApi("/api/chat", { id, userId, title }, "POST");
+        }
+
+        const userMessageId = generateUUID();
+
+        await callNextApi(
+          "/api/message",
+          {
+            messages: [
+              {
+                ...userMessage,
+                id: userMessageId,
+                createdAt: new Date(),
+                chatId: id,
+              },
+            ],
+          },
+          "POST"
+        );
 
         // Simulate processing (e.g., WebGPU tasks or any custom logic)
         const model = new ChatWebLLM({
-          model: "Llama-3.2-1B-Instruct-q4f32_1-MLC",
+          model: modelId,
           chatOptions: {
             temperature: 0.5,
           },

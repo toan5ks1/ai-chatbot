@@ -1,25 +1,28 @@
 import { cookies } from "next/headers";
 
 import { Chat } from "@/components/chat";
-import { DEFAULT_MODEL_NAME, models } from "@/lib/ai/models";
+import { DEFAULT_MODEL_BASES, DEFAULT_MODEL_NAME } from "@/lib/ai/models";
 import { generateUUID } from "@/lib/utils";
 import { DataStreamHandler } from "@/components/data-stream-handler";
+import { auth } from "@/app/(auth)/auth";
 
 export default async function Page() {
   const id = generateUUID();
 
+  const session = await auth();
   const cookieStore = await cookies();
   const modelIdFromCookie = cookieStore.get("model-id")?.value;
 
   const selectedModelId =
-    models.find((model) => model.id === modelIdFromCookie)?.id ||
-    DEFAULT_MODEL_NAME;
+    DEFAULT_MODEL_BASES.find((model) => model.name === modelIdFromCookie)
+      ?.name || DEFAULT_MODEL_NAME;
 
   return (
     <>
       <Chat
         key={id}
         id={id}
+        userId={session?.user?.id}
         initialMessages={[]}
         selectedModelId={selectedModelId}
         selectedVisibilityType="private"
