@@ -258,3 +258,28 @@ export async function callNextApi<T>(
     throw error;
   }
 }
+
+export function groupModelsByFamily(models: any) {
+  // Create a map to group models by display_name, provider, and family
+  const grouped = new Map();
+
+  models.forEach((model: any) => {
+    const key = `${model.display_name}-${model.provider}`;
+
+    if (!grouped.has(key)) {
+      // Initialize a new group if it doesn't exist
+      grouped.set(key, {
+        display_name: model.display_name,
+        provider: model.provider,
+        family: model.family,
+        items: [],
+      });
+    }
+
+    // Add the model to the corresponding group
+    grouped.get(key).items.push(model);
+  });
+
+  // Convert the map values to an array
+  return Array.from(grouped.values());
+}

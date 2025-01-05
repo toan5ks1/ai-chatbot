@@ -133,7 +133,7 @@ async function checkGPUAvailablity() {
           console.log(progress);
         });
 
-        const stream = await model.stream("hello");
+        const stream = await model.stream(coreMessages);
 
         return LangChainAdapter.toDataStreamResponse(stream);
       })()
