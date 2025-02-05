@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 
 import { Chat } from "@/components/chat";
-import { DEFAULT_MODEL_BASES, DEFAULT_MODEL_NAME } from "@/lib/ai/models";
+import { DEFAULT_MODEL_NAME, DEFAULT_MODEL_BASES } from "@/lib/ai/models";
 import { generateUUID } from "@/lib/utils";
 import { DataStreamHandler } from "@/components/data-stream-handler";
 import { auth } from "@/app/(auth)/auth";

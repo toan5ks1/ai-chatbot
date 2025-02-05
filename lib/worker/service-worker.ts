@@ -96,15 +96,14 @@ async function checkGPUAvailablity() {
         const res = await callNextApi<any>("/api/chat", { id }, "GET");
 
         if (!res.data) {
-          const title = await generateTitleFromUserMessage({
-            modelId,
-            message: userMessage,
-          });
+          // const title = await generateTitleFromUserMessage({
+          //   modelId,
+          //   message: userMessage,
+          // });
+          const title = "Random message";
 
           await callNextApi("/api/chat", { id, userId, title }, "POST");
         }
-
-        const userMessageId = generateUUID();
 
         await callNextApi(
           "/api/message",
@@ -112,7 +111,7 @@ async function checkGPUAvailablity() {
             messages: [
               {
                 ...userMessage,
-                id: userMessageId,
+                id: generateUUID(),
                 createdAt: new Date(),
                 chatId: id,
               },
