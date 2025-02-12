@@ -107,13 +107,11 @@ export async function getChatById({ id }: { id: string }) {
 
 export async function saveMessages({ messages }: { messages: Array<Message> }) {
   try {
-    const values: Array<Message> = [];
-
-    messages.forEach((item) => {
-      values.push({ ...item, createdAt: new Date(item.createdAt) });
-    });
-
-    return await db.insert(message).values(values);
+    return await db
+      .insert(message)
+      .values(
+        messages.map((msg) => ({ ...msg, createdAt: new Date(msg.createdAt) }))
+      );
   } catch (error) {
     console.error("Failed to save messages in database", error);
     throw error;

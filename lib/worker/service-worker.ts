@@ -4,7 +4,7 @@ import { defaultCache } from "@serwist/next/worker";
 import { convertToCoreMessages, LangChainAdapter, type Message } from "ai";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import { CacheFirst, ExpirationPlugin, Serwist } from "serwist";
-import { callNextApi, generateUUID, getMostRecentUserMessage } from "../utils";
+import { callNextApi, getMostRecentUserMessage } from "../utils";
 import { generateTitleFromUserMessage } from "../client/action";
 
 declare const self: WorkerGlobalScope;
@@ -93,33 +93,6 @@ async function checkGPUAvailablity() {
           return new Response("No user message found", { status: 400 });
         }
 
-        const res = await callNextApi<any>("/api/chat", { id }, "GET");
-
-        if (!res.data) {
-          // const title = await generateTitleFromUserMessage({
-          //   modelId,
-          //   message: userMessage,
-          // });
-          const title = "Random message";
-
-          await callNextApi("/api/chat", { id, userId, title }, "POST");
-        }
-
-        await callNextApi(
-          "/api/message",
-          {
-            messages: [
-              {
-                ...userMessage,
-                id: generateUUID(),
-                createdAt: new Date(),
-                chatId: id,
-              },
-            ],
-          },
-          "POST"
-        );
-
         // Simulate processing (e.g., WebGPU tasks or any custom logic)
         const model = new ChatWebLLM({
           model: modelId,
@@ -132,9 +105,63 @@ async function checkGPUAvailablity() {
           console.log(progress);
         });
 
+        const res = await callNextApi<any>("/api/chat", { id }, "GET");
+
+        if (!res.data) {
+          const title = await generateTitleFromUserMessage({
+            model,
+            message: userMessage,
+          });
+
+          await callNextApi("/api/chat", { id, userId, title }, "POST");
+        }
+
+        await callNextApi(
+          "/api/message",
+          {
+            messages: [
+              {
+                ...userMessage,
+                createdAt: new Date(),
+                chatId: id,
+              },
+            ],
+          },
+          "POST"
+        );
+
         const stream = await model.stream(coreMessages);
 
-        return LangChainAdapter.toDataStreamResponse(stream);
+        return LangChainAdapter.toDataStreamResponse(stream, {
+          callbacks: {
+            onFinal: async (completion) => {
+              try {
+                const coreMessages = convertToCoreMessages([
+                  {
+                    role: "assistant",
+                    content: completion,
+                  },
+                ])[0];
+                // Save the assistant's response
+                await callNextApi(
+                  "/api/message",
+                  {
+                    messages: [
+                      {
+                        ...coreMessages,
+                        createdAt: new Date(),
+                        chatId: id,
+                      },
+                    ],
+                  },
+                  "POST"
+                );
+              } catch (error) {
+                console.error("Error saving assistant message:", error);
+              }
+            },
+          },
+        });
       })()
     );
   }
